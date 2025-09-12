@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "w+0ZwwKgo2RKwdE8a9dlI49QBfMmcQEjPlTsTBagR/4=",
+  "Source": "IdentityAndJWT",
+  "BasePath": "_content/IdentityAndJWT",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
