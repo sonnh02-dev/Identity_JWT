@@ -60,6 +60,23 @@
           }
         }
       },
+      "FluentResults/4.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "2.1.1",
+          "System.Threading.Tasks.Extensions": "4.5.4"
+        },
+        "compile": {
+          "lib/net9.0/FluentResults.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/FluentResults.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Humanizer.Core/2.14.1": {
         "type": "package",
         "compile": {
@@ -1805,6 +1822,27 @@
         "lib/netstandard1.3/Bogus.xml",
         "lib/netstandard2.0/Bogus.dll",
         "lib/netstandard2.0/Bogus.xml"
+      ]
+    },
+    "FluentResults/4.0.0": {
+      "sha512": "wKfdLvDnDVhXlSreU7u/NFNHH6EfoOhAloEID4ePAyk+ZliowKZJvX+aCL4hxhFc9Jj74t62amS4LyOYTjXGCg==",
+      "type": "package",
+      "path": "fluentresults/4.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "FluentResults-Icon-128.png",
+        "README.md",
+        "fluentresults.4.0.0.nupkg.sha512",
+        "fluentresults.nuspec",
+        "lib/net8.0/FluentResults.dll",
+        "lib/net8.0/FluentResults.xml",
+        "lib/net9.0/FluentResults.dll",
+        "lib/net9.0/FluentResults.xml",
+        "lib/netstandard2.0/FluentResults.dll",
+        "lib/netstandard2.0/FluentResults.xml",
+        "lib/netstandard2.1/FluentResults.dll",
+        "lib/netstandard2.1/FluentResults.xml"
       ]
     },
     "Humanizer.Core/2.14.1": {
@@ -5045,6 +5083,7 @@
   "projectFileDependencyGroups": {
     "net9.0": [
       "Bogus >= 35.6.3",
+      "FluentResults >= 4.0.0",
       "Microsoft.AspNetCore.Authentication.JwtBearer >= 9.0.5",
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore >= 9.0.5",
       "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.5",
@@ -5059,11 +5098,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Asp.Net\\Identity&JWT\\Identity&JWT\\IdentityAndJWT.csproj",
-      "projectName": "IdentityAndJWT",
-      "projectPath": "D:\\Asp.Net\\Identity&JWT\\Identity&JWT\\IdentityAndJWT.csproj",
+      "projectUniqueName": "C:\\Users\\admin\\OneDrive\\Desktop\\Identity_JWT\\Identity_JWT.csproj",
+      "projectName": "Identity_JWT",
+      "projectPath": "C:\\Users\\admin\\OneDrive\\Desktop\\Identity_JWT\\Identity_JWT.csproj",
       "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
-      "outputPath": "D:\\Asp.Net\\Identity&JWT\\Identity&JWT\\obj\\",
+      "outputPath": "C:\\Users\\admin\\OneDrive\\Desktop\\Identity_JWT\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -5077,7 +5116,6 @@
         "net9.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -5105,6 +5143,10 @@
           "Bogus": {
             "target": "Package",
             "version": "[35.6.3, )"
+          },
+          "FluentResults": {
+            "target": "Package",
+            "version": "[4.0.0, )"
           },
           "Microsoft.AspNetCore.Authentication.JwtBearer": {
             "target": "Package",

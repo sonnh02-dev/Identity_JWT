@@ -1,0 +1,8 @@
+﻿
+# Ignore recursively in all subfolders
+**/bin/
+**/obj/
+.vs/
+**/.vs/
+
+appsettings.Development.json

@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Identity_JWT.Infrastructure.Persistence;
 
-namespace IdentityAndJWT;
+namespace Identity_JWT.Infrastructure.Persistence.Configuarations;
 
 public static class DbSeeder
 {
-    public static async Task SeedAsync(AppDbContext context, IServiceProvider services, CancellationToken ct)
+    public static async Task SeedAsync(ApplicationDbContext context, IServiceProvider services, CancellationToken ct)
     {
         var userManager = services.GetRequiredService<UserManager<IdentityUser<int>>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole<int>>>();
@@ -34,7 +35,7 @@ public static class DbSeeder
                 {
                     var profile = new UserProfile
                     {
-                        Id = user.Id,
+                        UserAccountId = user.Id,
                         FullName = faker.Name.FullName()
                     };
 
