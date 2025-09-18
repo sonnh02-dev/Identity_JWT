@@ -13,7 +13,7 @@ namespace Identity_JWT.Application.Abstractions.Authentication
         Task<IdentityResult> RegisterAsync(RegisterRequest request);
         Task<Result<TokenResponse>> LoginAsync(LoginRequest request);
         Task SignOutAsync();
-        Task<(IdentityResult Result, string? Token)> GeneratePasswordResetTokenAsync(string email);
+        Task<Result> RequestPasswordResetAsync(string email);
         Task<IdentityResult> ResetPasswordAsync(ResetPasswordRequest request);
         Task<IdentityResult> ChangePasswordAsync(ClaimsPrincipal principal, string oldPassword, string newPassword);
         Task<IdentityResult> ConfirmEmailAsync(ConfirmEmailRequest request);

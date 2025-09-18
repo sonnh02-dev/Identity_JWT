@@ -5,6 +5,7 @@ using Identity_JWT.Application.Abstractions.Authorization;
 using Identity_JWT.Application.Abstractions.Email;
 using Identity_JWT.Application.DTOs.Requests;
 using Identity_JWT.Application.DTOs.Responses;
+using Identity_JWT.Infrastructure.Email;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -24,62 +25,93 @@ namespace Identity_JWT.Infrastructure.Authentication
         private readonly SignInManager<UserAuth> _signInManager;
         private readonly ITokenService _tokenService;
         private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
+        private readonly MailMessageFactory _messageFactory;
 
         public AuthenticationService(
             UserManager<UserAuth> userManager,
             SignInManager<UserAuth> signInManager,
             ITokenService tokenService,
-            IEmailService emailService)
+            IEmailService emailService,
+            IConfiguration configuration,
+            MailMessageFactory messageFactory)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _tokenService = tokenService;
             _emailService = emailService;
+            _configuration = configuration;
+            _messageFactory = messageFactory;
         }
         //--------------------------------------------Register and confirm email-----------------------------------------------
-        public async Task<IdentityResult> RegisterAsync(RegisterRequest request)
+        public async Task<Result> RegisterAsync(RegisterRequest request)
         {
-            var user = new UserAuth
+            var user = new UserAuth { Email = request.Email };//hoặc dùng mapper
+
+            var createResult = await _userManager.CreateAsync(user, request.Password);//Bao gồm check unique email
+
+            if (!createResult.Succeeded)
             {
-                UserName = request.Email,
-                Email = request.Email
-            };
+                return Result.Fail("Registration failed")
+                             .WithErrors((IEnumerable<IError>)createResult.Errors);
+            }
+            await _userManager.AddToRoleAsync(user, "Student");
 
-            var result = await _userManager.CreateAsync(user, request.Password);  //Check unique and create 
-            if (!result.Succeeded)
-                return result;
+            return await SendEmailConfirmationAsync(user);
 
-            // Sinh token xác nhận email
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-            var confirmationLink = $"https://yourapp.com/api/account/confirm-email?userId={user.Id}&token={encodedToken}";
-            await _emailService.SendConfirmEmailAsync(user.Email, confirmationLink);
-
-
-            return IdentityResult.Success;
         }
-        public async Task<IdentityResult> ConfirmEmailAsync(ConfirmEmailRequest request)
+        public async Task<Result> SendEmailConfirmationAsync(UserAuth user)
         {
-            var user = await _userManager.FindByIdAsync(request.UserId);
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+            var queryParams = new Dictionary<string, string?>
+              {
+                 { "email", user.Email },
+                 { "token", token }
+             };
+
+            var confirmationLink = QueryHelpers.AddQueryString(
+                _configuration.GetValue<string>("ServerUrl") + "/authentication/confirm-email",
+                queryParams
+            );
+
+            var mail = _messageFactory.CreateConfirmEmailMessage(user.Email, confirmationLink);
+            var sendResult = await _emailService.SendEmailAsync(mail);
+
+            if (sendResult.IsFailed)
+                return Result.Fail("Failed to send confirmation email")
+                             .WithErrors(sendResult.Errors);
+
+            return Result.Ok();
+        }
+        public async Task<Result> ConfirmEmailAsync(ConfirmEmailRequest request)
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
             if (user == null)
             {
-                return IdentityResult.Failed(new IdentityError
-                {
-                    Code = "InvalidRequest",
-                    Description = "User not found."
-                });
+                return Result.Fail("User not found.")
+                             .WithError(new Error("InvalidRequest"));
             }
 
             var token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Token));
-            return await _userManager.ConfirmEmailAsync(user, token);
+
+            var confirmResult = await _userManager.ConfirmEmailAsync(user, token);
+            if (!confirmResult.Succeeded)
+            {
+                return Result.Fail("Email confirmation failed")
+                             .WithErrors(confirmResult.Errors.Select(e => new Error(e.Description).WithMetadata("Code", e.Code)));
+            }
+
+            return Result.Ok();
         }
+
         //-----------------------------------------------Login and create JWT token --------------------------------------
         public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request)
         {
             var user = await _userManager.FindByEmailAsync(request.Email);
             if (user == null)
             {
-                return Result.Fail(new Error("Email không tồn tại")
+                return Result.Fail(new Error("Email not exists !")
                     .WithMetadata("code", "InvalidEmail")
                     .WithMetadata("errorType", "NotFound"));
             }
@@ -87,20 +119,21 @@ namespace Identity_JWT.Infrastructure.Authentication
             var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
             if (!result.Succeeded)
             {
-                return Result.Fail(new Error("Sai mật khẩu")
+                return Result.Fail(new Error("Wrong password !")
                     .WithMetadata("code", "InvalidPassword")
                     .WithMetadata("errorType", "Validation"));
 
             }
 
             var roles = await _userManager.GetRolesAsync(user);
-            var token = _tokenService.GenerateAccessToken(user.Id, user.Email, roles);
+            var token = _tokenService.GenerateAccessToken(user.Id, request.Email, roles);
 
             var tokenDto = new TokenResponse
             {
                 Token = token,
                 Expiration = DateTime.UtcNow.AddHours(1)
             };
+            //await _signInManager.SignInAsync(user, true);//when use cookie authentication.
 
             return Result.Ok(tokenDto);
         }
@@ -109,73 +142,83 @@ namespace Identity_JWT.Infrastructure.Authentication
         public Task SignOutAsync() => _signInManager.SignOutAsync();
 
         // --------------------------------------------------ChangePassword-------------------------------------------    
-        public async Task<IdentityResult> ChangePasswordAsync(ClaimsPrincipal principal, string currentPassword, string newPassword)
+        public async Task<Result> ChangePasswordAsync(ClaimsPrincipal principal, string currentPassword, string newPassword)
         {
             var user = await _userManager.GetUserAsync(principal);
 
             if (user == null)
             {
-                return IdentityResult.Failed(new IdentityError
-                {
-                    Code = "InvalidRequest",
-                    Description = "User not found."
-                });
+                return Result.Fail("User not found.")
+                             .WithError(new Error("InvalidRequest"));
             }
 
-            return await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+            var changeResult = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+            if (!changeResult.Succeeded)
+            {
+                return Result.Fail("Change password failed")
+                             .WithErrors(changeResult.Errors.Select(e => new Error(e.Description)
+                             .WithMetadata("Code", e.Code)));
+            }
+
+            return Result.Ok();
         }
 
 
-        //---------------------------------------------------------------------------------
-        public async Task<IdentityResult> ForgotPasswordAsync(string email)
+
+        //----------------------------------------------ResetPassword-----------------------------------
+        public async Task<Result> RequestPasswordResetAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null)
-                return IdentityResult.Failed(); // hoặc trả về Success nhưng bỏ qua để tránh lộ email
+            {
+                return Result.Fail(new Error("Email không tồn tại")
+                      .WithMetadata("code", "InvalidEmail")
+                      .WithMetadata("errorType", "NotFound"));
+            }
+
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            var queryParams = new Dictionary<string, string?>
+              {
+               { "email", email },
+               { "token", token }
+              };
 
-            var resetLink = $"{_appSettings.ClientUrl}/reset-password?email={email}&token={encodedToken}";
+            var resetLink = QueryHelpers.AddQueryString(
+                _configuration.GetValue<string>("ClientUrl") + "/reset-password",
+            queryParams
+            );
 
-            await _emailService.SendResetPasswordEmailAsync(email, resetLink);
+            var mail = _messageFactory.CreateResetPasswordMessage(email, resetLink);
+            var result = await _emailService.SendEmailAsync(mail);
 
-            return IdentityResult.Success;
+            return Result.Ok();
         }
 
-        public async Task<IdentityResult> ResetPasswordAsync(ResetPasswordRequest request)
+        public async Task<Result> ResetPasswordAsync(ResetPasswordRequest request)
         {
             var user = await _userManager.FindByEmailAsync(request.Email);
 
             if (user == null)
             {
-                return IdentityResult.Failed(new IdentityError
-                {
-                    Code = "InvalidRequest",
-                    Description = "User not found."
-                });
+                return Result.Fail("User not found.")
+                             .WithError(new Error("InvalidRequest"));
             }
 
             var token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.ResetCode));
-            return await _userManager.ResetPasswordAsync(user, token, request.NewPassword);
-        }
 
-        public async Task<(IdentityResult Result, string? Token)> GeneratePasswordResetTokenAsync(string email)
-        {
-            var user = await _userManager.FindByEmailAsync(email);
-
-            if (user == null)
+            var resetResult = await _userManager.ResetPasswordAsync(user, token, request.NewPassword);
+            if (!resetResult.Succeeded)
             {
-                return (IdentityResult.Failed(new IdentityError
-                {
-                    Code = "InvalidRequest",
-                    Description = "User not found."
-                }), null);
+                return Result.Fail("Reset password failed")
+                             .WithErrors(resetResult.Errors.Select(e => new Error(e.Description)
+                             .WithMetadata("Code", e.Code)));
             }
 
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            return (IdentityResult.Success, WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token)));
+            return Result.Ok();
         }
+
+
 
         //public async Task<(IdentityResult Result, string? Token, int? UserId)> GenerateEmailConfirmationAsync(ClaimsPrincipal principal)
         //{
@@ -193,25 +236,54 @@ namespace Identity_JWT.Infrastructure.Authentication
         //    var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         //    return (IdentityResult.Success, WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code)), user.Id);
         //}
+        //----------------------------------------------ChangeEmail-----------------------------------
 
-       
+        public async Task<Result> RequestChangeEmailAsync(UserAuth user, string newEmail)
+        {
+            var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-        //public async Task<IActionResult> ResendConfirmationEmailAsync(ResendConfirmationEmailRequest request)
-        //{
-        //    var user = await _userManager.FindByEmailAsync(request.Email);
-        //    if (user == null || user.EmailConfirmed)
-        //    {
-        //        return Ok(); // Không tiết lộ user có tồn tại hay chưa
-        //    }
+            var queryParams = new Dictionary<string, string?>
+            {
+                { "userId", user.Id.ToString() },
+                { "email", newEmail },
+                { "token", encodedToken }
+            };
 
-        //    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        //    var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        //    var link = $"https://yourapp.com/confirm-email?userId={user.Id}&token={encodedToken}";
+            var changeEmailLink = QueryHelpers.AddQueryString(
+                _configuration["ServerUrl"] + "/api/changeemail/confirm",
+                queryParams
+            );
+            var mail = _messageFactory.CreateChangeEmailMessage(user.Email, changeEmailLink);
 
-        //    // TODO: Gửi email link này
+            var sendResult = await _emailService.SendEmailAsync(mail);
 
-        //    return Ok();
-        //}
+            return sendResult.IsSuccess
+                ? Result.Ok()
+                : Result.Fail(sendResult.Errors);
+        }
+
+        public async Task<Result> ConfirmChangeEmailAsync(int userId, string newEmail, string token)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+                return Result.Fail("User not found");
+
+            var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
+
+            var result = await _userManager.ChangeEmailAsync(user, newEmail, decodedToken);
+
+            if (!result.Succeeded)
+                return Result.Fail("Change email failed").WithErrors(result.Errors.Select(e => e.Description));
+
+            // Nếu email được dùng làm UserName thì update luôn
+            if (user.UserName != newEmail)
+                await _userManager.SetUserNameAsync(user, newEmail);
+
+            return Result.Ok();
+        }
+
+
 
         public async Task RefreshSignInAsync(ClaimsPrincipal principal)
         {

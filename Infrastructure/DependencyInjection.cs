@@ -5,6 +5,7 @@ using Identity_JWT.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -12,18 +13,14 @@ namespace Identity_JWT.Infrastructure
 {
     public static class DependencyInjection
     {
-        public static void  AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+        public static void AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
             //Add Email 
-           services.AddScoped<IEmailService>(sp =>
-              new EmailService(
-                  smtpHost: "smtp.gmail.com",
-                  smtpPort: 587,
-                  fromEmail: "youremail@gmail.com",
-                  password: "your-app-password", // Gmail cần App Password
-                  enableSsl: true
-              )
-          );
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.AddSingleton<IEmailService, EmailService>();
+
+
+
             // Add Identity
             services.AddIdentity<UserAuth, IdentityRole<int>>(options =>
             {
