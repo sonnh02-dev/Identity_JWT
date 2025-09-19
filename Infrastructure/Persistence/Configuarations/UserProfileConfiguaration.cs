@@ -8,13 +8,16 @@ namespace Identity_JWT.Infrastructure.Persistence.Configuarations
     {
         public void Configure(EntityTypeBuilder<UserProfile> builder)
         {
+            builder.HasKey(u => u.UserAccountId)
+                    .HasName("PK_UserProfiles_UserAccounts_Id");
 
-         builder.ToTable("UserProfiles",Schemas.Default)
-         .HasOne(u => u.UserAccount)
-         .WithOne()
-         .HasForeignKey<UserProfile>(u => u.UserAccountId)
-         .OnDelete(DeleteBehavior.Restrict); 
+            builder.ToTable("UserProfiles", Schemas.Default)
+             .HasOne(u => u.UserAccount)
+             .WithOne()
+             .HasForeignKey<UserProfile>(u => u.UserAccountId)
+             .HasConstraintName("FK_UserProfiles_UserAccounts_Id")
+             .OnDelete(DeleteBehavior.Restrict);
         }
-       
+
     }
 }

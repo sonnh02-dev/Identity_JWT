@@ -1,6 +1,6 @@
-﻿namespace Identity_JWT.Infrastructure.Email
+﻿namespace Identity_Jwt.Infrastructure.Email.Smtp
 {
-    public class EmailSettings
+    public class SmtpEmailSettings
     {
         public string SmtpHost { get; set; } = string.Empty;
         public int SmtpPort { get; set; }
@@ -9,5 +9,5 @@
         public string Password { get; set; } = string.Empty;
         public bool EnableSsl { get; set; }
     }
-
 }
+

@@ -119,48 +119,4 @@
 //    }
 
 //}
-using Identity_JWT.Application.Abstractions.Authentication;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
-using Microsoft.AspNetCore.Mvc;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
-{
-    private readonly IAuthenticationService _authService;
-    private readonly IAuthorizationService _authorizationService;
-
-    public AuthController(IAuthenticationService authService, IAuthorizationService authorizationService)
-    {
-        _authService = authService;
-        _authorizationService = authorizationService;
-    }
-
-    [HttpPost("register")]
-    public async Task<IActionResult> Register(SignUpRequest request)
-    {
-        var result = await _authService.RegisterAsync(request);
-        return result.Succeeded ? Ok(result) : BadRequest(result.Errors);
-    }
-
-    [HttpGet("check-role")]
-    [Authorize]
-    public async Task<IActionResult> CheckRole(string role)
-    {
-        bool inRole = await _authorizationService.IsInRoleAsync(User, role);
-        return Ok(new { InRole = inRole });
-    }
-    [HttpPost("resetPassword")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
-    {
-        var result = await _authService.ResetPasswordAsync(request);
-
-        if (!result.Succeeded)
-        {
-            return BadRequest(result.Errors.Select(e => e.Description));
-        }
-
-        return Ok("Password has been reset successfully.");
-    }
-}

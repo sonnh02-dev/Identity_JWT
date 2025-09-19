@@ -1,6 +1,7 @@
 ﻿using Identity_JWT.Application.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using IAuthorizationService = Identity_JWT.Application.Abstractions.Authorization.IAuthorizationService;
 
 namespace Identity_JWT.API.Controllers
 {
@@ -24,13 +25,13 @@ namespace Identity_JWT.API.Controllers
         }
 
         // bạn có thể thêm endpoint kiểm tra policy
-        [HttpGet("check-policy")]
-        [Authorize]
-        public async Task<IActionResult> CheckPolicy(string policyName)
-        {
-            var result = await _authorService.AuthorizeAsync(User, policyName);
-            return Ok(new { Authorized = result.Succeeded });
-        }
+        //[HttpGet("check-policy")]
+        //[Authorize]
+        //public async Task<IActionResult> CheckPolicy(string policyName)
+        //{
+        //    var result = await _authorService.AuthorizeAsync(User, policyName);
+        //    return Ok(new { Authorized = result.Succeeded });
+        //}
     }
 
 }

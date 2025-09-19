@@ -1,7 +1,6 @@
 ﻿using Identity_JWT.Infrastructure;
 using Identity_JWT.Infrastructure.Authentication;
 using Identity_JWT.Infrastructure.Persistence;
-using Identity_JWT.Infrastructure.Persistence.Configuarations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

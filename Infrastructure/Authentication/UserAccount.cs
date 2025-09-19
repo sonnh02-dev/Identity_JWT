@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Identity_JWT.Infrastructure.Authentication
 {
-    public partial class UserAuth : IdentityUser<int>
+    public partial class UserAccount : IdentityUser<int>
     {
         public int CreatorId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

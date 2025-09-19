@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity.Data;
 using Identity_JWT.Application.DTOs.Requests;
 using Microsoft.AspNetCore.Authorization;
-using EduCore.BackEnd.Infrastructure.Authentication;
 using Identity_JWT.Application.Abstractions.Email;
 using Azure.Core;
 using Microsoft.AspNetCore.Identity;
@@ -28,64 +27,55 @@ namespace Identity_JWT.API.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             var result = await _authenService.RegisterAsync(request);
-            return result.Succeeded ? Ok(result) : BadRequest(result.Errors);
+            return result.IsSuccess ? Ok(result) : BadRequest(result.Errors);
 
         }
         [HttpGet("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] ConfirmEmailRequest request)
         {
             var result = await _authenService.ConfirmEmailAsync(request);
-            return result.Succeeded ? Ok("Email confirmed successfully!")  : BadRequest(result.Errors);
+            return result.IsSuccess ? Ok("Email confirmed successfully!") : BadRequest(result.Errors);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             var result = await _authenService.LoginAsync(request);
-            return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails();
+            return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails(this);
+
 
         }
-        [HttpPost("forgotPassword")]
+        [HttpPost("request-password-reset")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
-            var result = await _authenService.ForgotPasswordAsync(request.Email);
+            var result = await _authenService.RequestPasswordResetAsync(request.Email);
 
             return Ok("Nếu email tồn tại trong hệ thống, hướng dẫn reset đã được gửi.");
         }
 
 
 
-        [HttpPost("resetPassword")]
+        [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
             var result = await _authenService.ResetPasswordAsync(request);
-
-            if (!result.Succeeded)
-            {
-                return BadRequest(result.Errors.Select(e => e.Description));
-            }
-
-            return Ok("Password has been reset successfully.");
+            return result.IsSuccess ? Ok("Password has been reset successfully.") : result.ToProblemDetails(this);
         }
 
-        [HttpPost("request")]
+        [HttpPost("request-change-email/{newEmail}")]
         [Authorize]
-        public async Task<IActionResult> RequestChangeEmail([FromBody] ChangeEmailRequest request)
+        public async Task<IActionResult> RequestChangeEmail(string newEmail)
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized("User not found");
 
-            var result = await _changeEmailService.RequestChangeEmailAsync(user, request.NewEmail);
-
+            var result = await _authenService.RequestChangeEmailAsync(User, newEmail);
             return result.IsSuccess ? Ok("Confirmation email sent.") : BadRequest(result.Errors);
         }
 
-        [HttpGet("confirm")]
+        [HttpGet("confirm-change-email")]
         [AllowAnonymous]
         public async Task<IActionResult> ConfirmChangeEmail([FromQuery] int userId, [FromQuery] string email, [FromQuery] string token)
         {
-            var result = await _changeEmailService.ConfirmChangeEmailAsync(userId, email, token);
+            var result = await _authenService.ConfirmChangeEmailAsync(userId, email, token);
 
             return result.IsSuccess ? Ok("Email changed successfully.") : BadRequest(result.Errors);
         }

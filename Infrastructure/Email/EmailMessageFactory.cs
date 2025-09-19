@@ -1,35 +1,36 @@
 ﻿using System.Net.Mail;
+using Identity_Jwt.Application.DTOs.Requests;
+using Identity_Jwt.Infrastructure.Email.Smtp;
 using Microsoft.Extensions.Options;
 
-namespace Identity_JWT.Infrastructure.Email
+namespace Identity_Jwt.Infrastructure.Email
 {
-    public class MailMessageFactory
+    public class EmailMessageFactory
     {
         private readonly string _fromEmail;
         private readonly string _displayName;
 
-        public MailMessageFactory(IOptions<EmailSettings> options, string displayName)
+        public EmailMessageFactory(IOptions<SmtpEmailSettings> options)
         {
             var settings = options.Value;
             _fromEmail = settings.FromEmail;
             _displayName = settings.DisplayName;
         }
 
-        private MailMessage CreateBaseMessage(string toEmail, string subject, string body)
+        private EmailMessage CreateBaseRequest(string toEmail, string subject, string body, bool isBodyHtml = true)
         {
-            var mail = new MailMessage
+            var mail = new EmailMessage
             {
                 From = new MailAddress(_fromEmail, _displayName),
+                To=toEmail,
                 Subject = subject,
                 Body = body,
-                IsBodyHtml = true
+                IsBodyHtml = isBodyHtml
             };
-
-            mail.To.Add(toEmail);
             return mail;
         }
 
-        public MailMessage CreateResetPasswordMessage(string toEmail, string resetLink)
+        public EmailMessage CreateResetPasswordRequest(string toEmail, string resetLink)
         {
             var body = $@"
                 <h2>Password Reset</h2>
@@ -38,10 +39,10 @@ namespace Identity_JWT.Infrastructure.Email
                 <p>If you did not request this, please ignore.</p>
             ";
 
-            return CreateBaseMessage(toEmail, "Reset your password", body);
+            return CreateBaseRequest(toEmail, "Reset your password", body);
         }
 
-        public MailMessage CreateConfirmEmailMessage(string toEmail, string confirmLink)
+        public EmailMessage CreateConfirmEmailRequest(string toEmail, string confirmLink)
         {
             var body = $@"
                 <h2>Email Confirmation</h2>
@@ -50,10 +51,10 @@ namespace Identity_JWT.Infrastructure.Email
                 <p>If you did not create this account, you can safely ignore this email.</p>
             ";
 
-            return CreateBaseMessage(toEmail, "Confirm your email", body);
+            return CreateBaseRequest(toEmail, "Confirm your email", body);
         }
 
-        public MailMessage CreateChangeEmailMessage(string toEmail, string confirmLink)
+        public EmailMessage CreateChangeEmailRequest(string toEmail, string confirmLink)
         {
             var body = $@"
                 <h2>Email Change Request</h2>
@@ -63,7 +64,7 @@ namespace Identity_JWT.Infrastructure.Email
                 <p>If you did not request this change, you can safely ignore this email.</p>
             ";
 
-            return CreateBaseMessage(toEmail, "Confirm your new email address", body);
+            return CreateBaseRequest(toEmail, "Confirm your new email address", body);
         }
     }
 }

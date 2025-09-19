@@ -8,9 +8,9 @@ namespace Identity_JWT.Infrastructure.Authorization
 {
     public class AuthorizationService : IAuthorizationService
     {
-        private readonly UserManager<UserAuth> _userManager;
+        private readonly UserManager<UserAccount> _userManager;
 
-        public AuthorizationService(UserManager<UserAuth> userManager)
+        public AuthorizationService(UserManager<UserAccount> userManager)
         {
             _userManager = userManager;
         }
