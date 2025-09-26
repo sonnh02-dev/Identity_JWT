@@ -1,0 +1,24 @@
+﻿@model dynamic
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Account Locked</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height:1.5; color:#333;">
+    <h2>Account Locked</h2>
+    <p>
+        Your account has been locked after <strong>@Model.FailedLoginAttempts </strong> failed login attempts.
+    </p>
+    <p>
+        For your security, please wait until the lockout period expires or reset your password to regain access.
+    </p>
+    <p>
+        If this wasn’t you, we strongly recommend resetting your password immediately or contacting our support team.
+    </p>
+    <hr />
+    <p style="font-size:12px; color:#777;">
+        This is an automated message, please do not reply.
+    </p>
+</body>
+</html>

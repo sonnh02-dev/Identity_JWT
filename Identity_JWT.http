@@ -1,6 +1,0 @@
-@IdentityEF_HostAddress = http://localhost:5059
-
-GET {{IdentityEF_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
