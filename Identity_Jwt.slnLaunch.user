@@ -3,12 +3,12 @@
     "Name": "New Profile",
     "Projects": [
       {
-        "Path": "ReactApp1\\reactapp1.client\\reactapp1.client.esproj",
+        "Path": "Identity_Jwt.Server\\Identity_Jwt.Server.csproj",
         "Action": "Start"
       },
       {
-        "Path": "ReactApp1\\ReactApp1.Server\\ReactApp1.Server.csproj",
-        "Action": "Start"
+        "Path": "identity_jwt.client\\identity_jwt.client.esproj",
+        "Action": "StartWithoutDebugging"
       }
     ]
   }

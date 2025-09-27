@@ -11,6 +11,8 @@ using Mapster;
 using Identity_Jwt.Server.Application.Abstractions.Email;
 using Identity_Jwt.Server.Infrastructure.Authentication.Entities;
 using Identity_Jwt.Server.Application.Abstractions.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using IAuthenticationService = Identity_Jwt.Server.Application.Abstractions.Authentication.IAuthenticationService;
 
 namespace Identity_Jwt.Server.Infrastructure.Authentication.Services;
 
@@ -22,6 +24,7 @@ public class AuthenticationService : IAuthenticationService
     private readonly IConfiguration _configuration;
     private readonly IEmailSender _emailSender;
     private readonly ILinkFactory _linkFactory;
+    private readonly IWebHostEnvironment _env;
 
     public AuthenticationService(
         UserManager<UserAccount> userManager,
@@ -29,7 +32,8 @@ public class AuthenticationService : IAuthenticationService
         ITokenService tokenService,
         IConfiguration configuration,
           IEmailSender emailSender,
-          ILinkFactory linkFactory)
+          ILinkFactory linkFactory,
+          IWebHostEnvironment env)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -37,6 +41,7 @@ public class AuthenticationService : IAuthenticationService
         _configuration = configuration;
         _emailSender = emailSender;
         _linkFactory = linkFactory;
+        _env = env;
     }
 
     // -------------------- Register & Confirm Email --------------------
@@ -90,13 +95,13 @@ public class AuthenticationService : IAuthenticationService
 
     // ---------------------------------- Login & JWT ----------------------------------------
 
-
-    public async Task<Result<LoginResponse>> LoginWithPasswordAsync(LoginRequest request)
+    //**Internal login with email & password**
+    public async Task<Result<object>> LoginWithPasswordAsync(LoginRequest request)
     {
         // Validate email & password
         var validationResult = await ValidateUserCredentialsAsync(request);
         if (validationResult.IsFailed)
-            return Result.Fail<LoginResponse>(validationResult.Errors);
+            return Result.Fail(validationResult.Errors);
 
         var user = validationResult.Value;
 
@@ -106,7 +111,9 @@ public class AuthenticationService : IAuthenticationService
             var twoFactorCode = await _userManager.GenerateTwoFactorTokenAsync(user, "Email");
             var sendResult = await _emailSender.SendTwoFactorCodeAsync(user.Email!, twoFactorCode);
             return sendResult.IsSuccess ?
-                 Result.Ok(new LoginResponse(user.Email!, RequiresTwoFactor: true)) :
+                 Result.Ok<object>(new LoginRequiresTwoFactorResponse(
+                     user.Email!, 
+                     TwoFactorCode: _env.IsDevelopment() ? twoFactorCode : null)) :
                  Result.Fail(sendResult.Errors);
         }
 
@@ -139,17 +146,26 @@ public class AuthenticationService : IAuthenticationService
 
             return Result.Fail(UserErrors.AccountLocked);
         }
+        if (!checkResult.Succeeded)
+        {
+            //Wrong password => decrease number of remaining login 
+            var maxAttempts = _userManager.Options.Lockout.MaxFailedAccessAttempts;
+            var failedAttempts = await _userManager.GetAccessFailedCountAsync(user);
+            var remaining = maxAttempts - failedAttempts;
+            return Result.Fail<UserAccount>(UserErrors.InvalidPassword(remaining));
+        }
+
         await _userManager.ResetAccessFailedCountAsync(user);
         return Result.Ok(user);
     }
 
-    public async Task<Result<LoginResponse>> LoginWithTwoFactorAsync(string email, string twoFactorCode)
+    public async Task<Result<object>> LoginWithTwoFactorAsync(LoginWithTwoFactorRequest request)
     {
-        var user = await _userManager.FindByEmailAsync(email);
+        var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null) return Result.Fail(UserErrors.NotFound);
 
         // Validate 2FA code
-        var isValid = await _userManager.VerifyTwoFactorTokenAsync(user, "Email", twoFactorCode);
+        var isValid = await _userManager.VerifyTwoFactorTokenAsync(user, "Email", request.TwoFactorCode);
         if (!isValid)
             return Result.Fail(AuthErrors.InvalidTwoFactorCode);
 
@@ -157,7 +173,7 @@ public class AuthenticationService : IAuthenticationService
         return await GenerateTokenForUserAsync(user);
     }
 
-    private async Task<Result<LoginResponse>> GenerateTokenForUserAsync(UserAccount user)
+    private async Task<Result<object>> GenerateTokenForUserAsync(UserAccount user)
     {
         // Generate access token
         var accessTokenResult = await _tokenService.GenerateAccessToken(user);
@@ -169,10 +185,58 @@ public class AuthenticationService : IAuthenticationService
         if (refreshTokenResult.IsFailed)
             return Result.Fail(refreshTokenResult.Errors);
 
-        return Result.Ok(new LoginResponse(user.Email!, accessTokenResult.Value, refreshTokenResult.Value));
+        return Result.Ok<object>(new LoginSuccessResponse(
+            user.Email!,
+            accessTokenResult.Value,
+            refreshTokenResult.Value)
+            );
     }
 
+    public Task<AuthenticationProperties> GetExternalLoginPropertiesAsync(string provider, string returnUrl)
+    {
+        var redirectUrl = $"{_configuration.GetSection("Url:Server")}/account/external-login-callback?returnUrl={returnUrl}";
+        var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+        return Task.FromResult(properties);
 
+    }
+    //**External login with Google, Facebook, etc.**
+    public async Task<Result<object>> ExternalLoginCallbackAsync()
+    {
+        var info = await _signInManager.GetExternalLoginInfoAsync();
+        if (info == null)
+            return Result.Fail("External login info not found");
+
+        var signInResult = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false);
+
+        UserAccount user;
+        if (signInResult.Succeeded)
+        {
+            user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+        }
+        else
+        {
+            var email = info.Principal.FindFirstValue(ClaimTypes.Email);
+            if (email == null)
+                return Result.Fail("Email not found from external provider");
+
+            user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                user = new UserAccount { UserName = email, Email = email };
+                var createResult = await _userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                    return Result.Fail("Failed to create user");
+            }
+
+            // Liên kết external login
+            var addLoginResult = await _userManager.AddLoginAsync(user, info);
+            if (!addLoginResult.Succeeded)
+                return Result.Fail("Failed to link external login");
+        }
+
+        // Tạo JWT token
+        return await GenerateTokenForUserAsync(user);
+    }
 
 
 

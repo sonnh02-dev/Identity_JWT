@@ -32,12 +32,12 @@ namespace Identity_Jwt.Server.Infrastructure.Authentication.Services
         {
             var roles = await _userManager.GetRolesAsync(user);
 
-            var expiryMinutes = _jwtSettings.AccessTokenExpiryMinutes;
+            var expiryMinutes = _jwtSettings.AccessTokenExpirationMinutes;
             if (expiryMinutes <= 0 || expiryMinutes > 1440)
             {
                 return Result.Fail(new Error("Access token expiry minutes must be between 1 and 1440 !")
                     .WithMetadata("errorCode", "InvalidExpiryDays")
-                    .WithMetadata("errorType", "BadRequest"));
+                    .WithMetadata("errorType", "Validation"));
             }
             var claims = new List<Claim>
             {
@@ -65,7 +65,7 @@ namespace Identity_Jwt.Server.Infrastructure.Authentication.Services
 
         public async Task<Result<string>> GenerateRefreshTokenAsync(int userId)
         {
-            var expiryDays = _jwtSettings.RefreshTokenExpiryDays;
+            var expiryDays = _jwtSettings.RefreshTokenExpirationDays;
             if (expiryDays <= 0 || expiryDays > 30)
             {
                 return Result.Fail(new Error("Refresh token expiry days must be between 1 and 30")

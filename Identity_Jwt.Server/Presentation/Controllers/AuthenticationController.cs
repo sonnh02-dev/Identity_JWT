@@ -42,11 +42,26 @@ namespace Identity_Jwt.Server.Presentation.Controllers
             var result = await _authenService.LoginWithPasswordAsync(request);
             return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails(this);
         }
-        [HttpPost("login-with-two-factor/{email}/{twoFactorCode}")]
-        public async Task<IActionResult> LoginWithTwoFactor(string email, string twoFactorCode)
+        [AllowAnonymous]
+        [HttpPost("login-with-two-factor")]
+        public async Task<IActionResult> LoginWithTwoFactor([FromBody] LoginWithTwoFactorRequest request)
         {
-            var result = await _authenService.LoginWithTwoFactorAsync(email, twoFactorCode);
+            var result = await _authenService.LoginWithTwoFactorAsync(request);
             return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails(this);
+        }
+        [HttpPost("external-login")]
+        public async Task<IActionResult> ExternalLogin([FromForm] string provider, [FromQuery] string returnUrl = null)
+        {
+            var properties = await _authenService.GetExternalLoginPropertiesAsync(provider, returnUrl ?? "/");
+            return Challenge(properties, provider);
+        }
+
+        [HttpGet("external-login-callback")]
+        public async Task<IActionResult> ExternalLoginCallback([FromQuery] string returnUrl = null)
+        {
+            var result = await _authenService.ExternalLoginCallbackAsync();
+            return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails(this);
+
         }
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()

@@ -14,10 +14,11 @@ public static class UserErrors
             .WithMetadata("errorCode", "User.EmailNotConfirmed")
             .WithMetadata("errorType", "Validation");
 
-    public static readonly Error InvalidPassword =
-        new Error("Wrong password")
-            .WithMetadata("errorCode", "User.InvalidPassword")
-            .WithMetadata("errorType", "Validation");
+    public static Error InvalidPassword(int remaining) =>
+     new Error($"Wrong password. You have {remaining} attempt(s) remaining !")
+         .WithMetadata("errorCode", "User.InvalidPassword")
+         .WithMetadata("errorType", "Validation");
+
 
     public static readonly Error AccountLocked =
     new Error("User account is locked")

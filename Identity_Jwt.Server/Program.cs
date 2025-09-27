@@ -46,11 +46,8 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
-app.UseAuthorization();   //[Middleware JwtBearer]
-                          //Lấy token từ Authorization header
-                          // Validate:Signature,Issuer,Audience,Expiration                           
-                          //    ├─- Nếu fail -> 401 Unauthorized
-                          //    └─- Nếu pass -> Tạo ClaimsPrincipal gắn vào HttpContext.User
+app.UseAuthorization();   
+                          
 
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
